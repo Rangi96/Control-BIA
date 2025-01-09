@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Metallic Bars</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #1a1a1a;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x1a1a1a);
+    document.body.appendChild(renderer.domElement);
+
+    // Increased ambient light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    scene.add(ambientLight);
+
+    // Brighter balanced lighting setup
+    const lights = [
+      { pos: [5, 5, 5], intensity: 1.0 },
+      { pos: [-5, 5, 5], intensity: 1.0 },
+      { pos: [0, 5, -5], intensity: 1.0 },
+      { pos: [0, -5, 5], intensity: 1.0 }
+    ];
+
+    lights.forEach(light => {
+      const directionalLight = new THREE.DirectionalLight(0xffffff, light.intensity);
+      directionalLight.position.set(...light.pos);
+      scene.add(directionalLight);
+    });
+
+    // Bar Dimensions
+    const middleBarHeight = 6;
+    const sideBarHeight = middleBarHeight * 0.7;
+    const sideBarStart = middleBarHeight * 0.15;
+    const sideBarYOffset = sideBarStart - middleBarHeight / 2 + sideBarHeight / 2;
+
+    // Bar geometries with higher segment count for smoother surface
+    const barGeometries = [
+      new THREE.BoxGeometry(2, sideBarHeight, 2, 32, 32, 32),
+      new THREE.BoxGeometry(2, middleBarHeight, 2, 32, 32, 32),
+      new THREE.BoxGeometry(2, sideBarHeight, 2, 32, 32, 32),
+    ];
+
+    // Helper function to increase color saturation
+    function increaseSaturation(hex, factor = 1.2) {
+      const color = new THREE.Color(hex);
+      const hsl = {};
+      color.getHSL(hsl);
+      // Increase saturation while keeping the same hue and lightness
+      return new THREE.Color().setHSL(hsl.h, Math.min(1, hsl.s * factor), hsl.l);
+    }
+
+    // Adjusted material setup for more saturated colors
+    function createBrushedMetalMaterial(color) {
+      const saturatedColor = increaseSaturation(color);
+      const material = new THREE.MeshPhysicalMaterial({
+        color: saturatedColor,
+        metalness: 0.75,         // Slightly reduced for more color
+        roughness: 0.3,          // Keep shine
+        reflectivity: 0.9,       // High reflectivity
+        clearcoat: 0.4,          // Good shine
+        clearcoatRoughness: 0.3,  // Smooth clearcoat
+        emissive: saturatedColor, // Add slight emissive with saturated color
+        emissiveIntensity: 0.15   // Subtle glow to enhance color
+      });
+      
+      return material;
+    }
+
+    // More saturated base colors
+    const materials = [
+      createBrushedMetalMaterial(0x2050E0),  // More saturated blue
+      createBrushedMetalMaterial(0xB070DD),  // More saturated purple
+      createBrushedMetalMaterial(0xBFBFBF)   // Silver (unchanged)
+    ];
+
+    // Add Bars
+    const bars = [];
+    barGeometries.forEach((geometry, index) => {
+      const bar = new THREE.Mesh(geometry, materials[index]);
+      
+      if (index === 1) {
+        bar.position.set(index * 2.5 - 2.5, 0, 0);
+      } else {
+        bar.position.set(index * 2.5 - 2.5, sideBarYOffset, 0);
+      }
+
+      scene.add(bar);
+      bars.push(bar);
+    });
+
+    // Group for Moving Bars Together
+    const group = new THREE.Group();
+    bars.forEach(bar => group.add(bar));
+    scene.add(group);
+
+    // Camera Position
+    camera.position.z = 15;
+
+    // Mouse Movement with Limited Range
+    let mouseX = 0, mouseY = 0;
+    let targetRotationX = 0;
+    let targetRotationY = 0;
+    let currentRotationX = 0;
+    let currentRotationY = 0;
+
+    // Limit rotation range
+    const maxRotation = Math.PI / 3;
+
+    document.addEventListener('mousemove', (event) => {
+      mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+      mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+      
+      targetRotationY = Math.max(Math.min(mouseX * 0.8, maxRotation), -maxRotation);
+      targetRotationX = Math.max(Math.min(mouseY * 0.8, maxRotation), -maxRotation);
+    });
+
+    // Animation Loop
+    function animate() {
+      currentRotationX += (targetRotationX - currentRotationX) * 0.05;
+      currentRotationY += (targetRotationY - currentRotationY) * 0.05;
+
+      group.rotation.x = currentRotationX;
+      group.rotation.y = currentRotationY;
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
